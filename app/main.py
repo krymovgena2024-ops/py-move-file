@@ -4,29 +4,42 @@ from pathlib import Path
 
 def move_file(command: str) -> None:
     split_command = command.split()
-    if "/" not in split_command[2] or "\\" not in split_command[2]:
+    _, source, destination = split_command
+    source_filename = Path(source).name
+    if "/" not in destination and "\\" not in destination:
         try:
-            record_file = Path(split_command[1])
-            record_file.rename(split_command[2])
+            record_file = Path(source)
+            record_file.rename(destination)
             return
-        except FileNotFoundError:
-            pass
-    if "/" in split_command[2]:
-        path = split_command[2]
-        split_path = path.split("/")
-    else:
-        path = split_command[2]
-        split_path = path.split("\\")
-    directories_to_create = [split_path[0]]
-    for directory in split_path[1:]:
-        try:
-            os.mkdir(os.path.join(*directories_to_create))
         except FileExistsError:
             pass
+    directories_to_create = []
+    if destination[-1] == "/":
+        split_path = destination.split("/")
+        if split_path[0] == "":
+            split_path.remove(split_path[0])
+        split_path.pop()
+        for directory in split_path:
+            directories_to_create.append(directory)
+        universal_path = os.path.join(*directories_to_create, source_filename)
+        os.makedirs(os.path.dirname(universal_path), exist_ok=True)
+        with (open(source, "r") as source_file,
+              open(universal_path, "w") as record_file):
+            text = source_file.read()
+            record_file.write(text)
+        os.remove(source)
+        return
+    if "/" in destination:
+        split_path = destination.split("/")
+    if "\\" in destination:
+        split_path = destination.split("\\")
+    destination_filename = split_path.pop()
+    for directory in split_path:
         directories_to_create.append(directory)
-    universal_path = os.path.join(*directories_to_create)
-    with (open(split_command[1], "r") as source_file,
+    universal_path = os.path.join(*directories_to_create, destination_filename)
+    os.makedirs(os.path.dirname(universal_path), exist_ok=True)
+    with (open(source, "r") as source_file,
           open(universal_path, "w") as record_file):
         text = source_file.read()
         record_file.write(text)
-    os.remove(split_command[1])
+    os.remove(source)
